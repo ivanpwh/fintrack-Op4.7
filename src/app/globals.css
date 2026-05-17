@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --card: #ffffff;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+.dark {
+  --bg: #0b1220;
+  --fg: #e6edf7;
+  --card: #111a2e;
+  --muted: #94a3b8;
+  --border: #1f2a44;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border p-5 shadow-sm;
+    background: var(--card);
+    border-color: var(--border);
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
+  .btn-ghost { @apply btn border; border-color: var(--border); }
+  .input {
+    @apply w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500;
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--fg);
+  }
+  .label { @apply text-xs font-medium uppercase tracking-wide; color: var(--muted); }
+  .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+  .nav-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition;
+    color: var(--muted);
+  }
+  .nav-link:hover { background: rgba(59, 130, 246, 0.08); color: var(--fg); }
+  .nav-link.active { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+}
