@@ -31,7 +31,14 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-const PIE_COLORS = ["#0ea5e9", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
+const PIE_COLORS = [
+  "hsl(160 84% 39%)",
+  "hsl(217 91% 60%)",
+  "hsl(32 95% 44%)",
+  "hsl(0 84% 60%)",
+  "hsl(271 91% 65%)",
+  "hsl(199 89% 48%)",
+];
 
 export default function DashboardPage() {
   const { transactions, accounts, user } = useApp();
@@ -152,9 +159,9 @@ export default function DashboardPage() {
                   Pemasukan vs pengeluaran 30 hari
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <Legend2 color="#22c55e" label="Income" />
-                <Legend2 color="#ef4444" label="Expense" />
+              <div className="flex items-center gap-3 text-xs">
+                <Legend2 color="hsl(var(--success))" label="Income" />
+                <Legend2 color="hsl(var(--destructive))" label="Expense" />
               </div>
             </div>
             <div className="h-72">
@@ -162,12 +169,12 @@ export default function DashboardPage() {
                 <AreaChart data={stats.series} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
                   <defs>
                     <linearGradient id="in" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.5} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.55} />
+                      <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="out" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.5} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.45} />
+                      <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -200,16 +207,16 @@ export default function DashboardPage() {
                   <Area
                     type="monotone"
                     dataKey="income"
-                    stroke="#22c55e"
-                    strokeWidth={2}
+                    stroke="hsl(var(--success))"
+                    strokeWidth={2.25}
                     fill="url(#in)"
                     name="Income"
                   />
                   <Area
                     type="monotone"
                     dataKey="expense"
-                    stroke="#ef4444"
-                    strokeWidth={2}
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth={2.25}
                     fill="url(#out)"
                     name="Expense"
                   />
