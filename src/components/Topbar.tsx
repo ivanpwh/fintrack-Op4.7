@@ -1,6 +1,5 @@
 "use client";
 import { Eye, EyeOff, LogOut, Plus, Menu } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { t } from "@/lib/i18n";
@@ -10,15 +9,13 @@ export function Topbar({ title }: { title: string }) {
   const { hideAmounts, locale } = useApp((s) => s.settings);
   const updateSettings = useApp((s) => s.updateSettings);
   const signOut = useApp((s) => s.signOut);
+  const openTxModal = useApp((s) => s.openTxModal);
 
   return (
-    <header
-      className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur"
-      style={{ borderColor: "var(--border)", background: "color-mix(in oklab, var(--bg) 80%, transparent)" }}
-    >
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur">
       <div className="flex items-center gap-2">
-        <button className="md:hidden btn-ghost p-2">
-          <Menu size={18} />
+        <button className="btn-ghost h-9 w-9 p-0 md:hidden" aria-label="Menu">
+          <Menu className="h-4 w-4" />
         </button>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
@@ -28,24 +25,24 @@ export function Topbar({ title }: { title: string }) {
           onClick={() => updateSettings({ hideAmounts: !hideAmounts })}
           title={t(locale, hideAmounts ? "showAmount" : "hideAmount")}
         >
-          {hideAmounts ? <EyeOff size={16} /> : <Eye size={16} />}
+          {hideAmounts ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           <span className="hidden sm:inline">
             {t(locale, hideAmounts ? "showAmount" : "hideAmount")}
           </span>
         </button>
-        <Link href="/app/transactions/new" className="btn-primary">
-          <Plus size={16} />
+        <button onClick={openTxModal} className="btn-primary">
+          <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">{t(locale, "addTransaction")}</span>
-        </Link>
+        </button>
         <button
-          className="btn-ghost"
+          className="btn-ghost h-9 w-9 p-0"
           onClick={() => {
             signOut();
             router.push("/");
           }}
           title={t(locale, "signOut")}
         >
-          <LogOut size={16} />
+          <LogOut className="h-4 w-4" />
         </button>
       </div>
     </header>

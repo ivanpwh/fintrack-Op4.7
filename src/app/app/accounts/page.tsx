@@ -4,8 +4,15 @@ import { Topbar } from "@/components/Topbar";
 import { useApp, type AccountType } from "@/lib/store";
 import { formatCurrency } from "@/lib/format";
 import { t } from "@/lib/i18n";
-import { Banknote, Building2, LineChart, Plus, Wallet, type LucideIcon } from "lucide-react";
-import clsx from "clsx";
+import {
+  Banknote,
+  Building2,
+  LineChart,
+  Plus,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+import { Dialog } from "@/components/ui/Dialog";
 
 const ICON: Record<AccountType, LucideIcon> = {
   CASH: Banknote,
@@ -28,13 +35,20 @@ export default function AccountsPage() {
 
   const free = user?.tier === "free";
   const investmentCount = accounts.filter((a) => a.type === "INVESTMENT").length;
+  const blockInvestment = free && investmentCount >= 1 && type === "INVESTMENT";
+
+  const reset = () => {
+    setName("");
+    setBalance(0);
+    setType("BANK_CARD");
+    setCurrency("IDR");
+  };
 
   const save = () => {
     if (!name) return;
     addAccount({ name, type, balance, currency });
     setOpen(false);
-    setName("");
-    setBalance(0);
+    reset();
   };
 
   return (
@@ -42,11 +56,11 @@ export default function AccountsPage() {
       <Topbar title={t(locale, "accounts")} />
       <div className="space-y-4 p-4 md:p-6">
         <div className="flex items-center justify-between">
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
+          <p className="text-sm text-muted-foreground">
             Kelola akun kas, bank, dan investasi Anda.
           </p>
           <button className="btn-primary" onClick={() => setOpen(true)}>
-            <Plus size={16} /> Akun Baru
+            <Plus className="h-4 w-4" /> Akun Baru
           </button>
         </div>
 
@@ -57,15 +71,15 @@ export default function AccountsPage() {
               <div key={a.id} className="card">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-100 text-brand-700">
-                      <Icon size={18} />
+                    <span className="grid h-10 w-10 place-items-center rounded-md bg-secondary text-secondary-foreground">
+                      <Icon className="h-5 w-5" />
                     </span>
                     <div>
                       <div className="font-medium">{a.name}</div>
-                      <div className="text-xs" style={{ color: "var(--muted)" }}>{a.type}</div>
+                      <div className="text-xs text-muted-foreground">{a.type}</div>
                     </div>
                   </div>
-                  <span className="pill bg-slate-100 text-slate-600">{a.currency}</span>
+                  <span className="pill-outline">{a.currency}</span>
                 </div>
                 <div className="mt-4 text-2xl font-semibold tracking-tight">
                   {formatCurrency(a.balance, a.currency, "id-ID", hide)}
@@ -76,64 +90,90 @@ export default function AccountsPage() {
         </div>
 
         {free && investmentCount >= 1 && (
-          <div className="card border-amber-300 bg-amber-50 text-amber-900">
+          <div className="card border-warning/40 bg-warning/10 text-sm text-warning">
             Free tier dibatasi 1 akun investasi. Upgrade Premium untuk unlimited.
           </div>
         )}
 
-        {open && (
-          <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4">
-            <div className="card w-full max-w-md">
-              <h2 className="text-base font-semibold">Akun Baru</h2>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <label className="label">Nama</label>
-                  <input className="input mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="BCA, Cash, etc." />
-                </div>
-                <div>
-                  <label className="label">Tipe</label>
-                  <select className="input mt-1" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_CARD">Bank / Card</option>
-                    <option value="INVESTMENT">Investment</option>
-                    <option value="ASSET">Asset</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Saldo</label>
-                    <input
-                      className="input mt-1"
-                      inputMode="numeric"
-                      value={balance || ""}
-                      onChange={(e) => setBalance(Number(e.target.value.replace(/\D/g, "")))}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Mata Uang</label>
-                    <select className="input mt-1" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                      <option value="IDR">IDR</option>
-                      <option value="USD">USD</option>
-                      <option value="JPY">JPY</option>
-                      <option value="EUR">EUR</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button className="btn-ghost" onClick={() => setOpen(false)}>Batal</button>
-                <button
-                  className={clsx("btn-primary", free && investmentCount >= 1 && type === "INVESTMENT" && "opacity-50")}
-                  onClick={save}
-                  disabled={!name || (free && investmentCount >= 1 && type === "INVESTMENT")}
-                >
-                  Simpan
-                </button>
-              </div>
+        <Dialog
+          open={open}
+          onClose={() => {
+            setOpen(false);
+            reset();
+          }}
+          title="Akun Baru"
+          description="Tambahkan akun kas, bank, atau investasi."
+        >
+          <div className="space-y-3">
+            <Field label="Nama">
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="BCA, Cash, etc."
+              />
+            </Field>
+            <Field label="Tipe">
+              <select
+                className="input"
+                value={type}
+                onChange={(e) => setType(e.target.value as AccountType)}
+              >
+                <option value="CASH">Cash</option>
+                <option value="BANK_CARD">Bank / Card</option>
+                <option value="INVESTMENT">Investment</option>
+                <option value="ASSET">Asset</option>
+              </select>
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Saldo">
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={balance || ""}
+                  onChange={(e) => setBalance(Number(e.target.value.replace(/\D/g, "")))}
+                />
+              </Field>
+              <Field label="Mata Uang">
+                <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                  <option value="IDR">IDR</option>
+                  <option value="USD">USD</option>
+                  <option value="JPY">JPY</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </Field>
             </div>
+            {blockInvestment && (
+              <p className="text-xs text-warning">
+                Free tier hanya mengizinkan 1 akun investasi.
+              </p>
+            )}
           </div>
-        )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                setOpen(false);
+                reset();
+              }}
+            >
+              Batal
+            </button>
+            <button className="btn-primary" onClick={save} disabled={!name || blockInvestment}>
+              Simpan
+            </button>
+          </div>
+        </Dialog>
       </div>
     </>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="label">{label}</label>
+      {children}
+    </div>
   );
 }
