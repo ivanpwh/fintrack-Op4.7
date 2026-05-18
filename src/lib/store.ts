@@ -52,6 +52,7 @@ interface AppState {
   settings: Settings;
   maintenance: boolean;
   txModalOpen: boolean;
+  mobileNavOpen: boolean;
   signIn: (user: User) => void;
   signOut: () => void;
   upgrade: () => void;
@@ -63,6 +64,7 @@ interface AppState {
   toggleMaintenance: () => void;
   openTxModal: () => void;
   closeTxModal: () => void;
+  setMobileNav: (open: boolean) => void;
 }
 
 const seedAccounts: Account[] = [
@@ -103,6 +105,7 @@ export const useApp = create<AppState>()(
       },
       maintenance: false,
       txModalOpen: false,
+      mobileNavOpen: false,
       signIn: (user) => set({ user }),
       signOut: () => set({ user: null }),
       upgrade: () =>
@@ -122,6 +125,7 @@ export const useApp = create<AppState>()(
       toggleMaintenance: () => set((s) => ({ maintenance: !s.maintenance })),
       openTxModal: () => set({ txModalOpen: true }),
       closeTxModal: () => set({ txModalOpen: false }),
+      setMobileNav: (open) => set({ mobileNavOpen: open }),
     }),
     { name: "fintrack-store" },
   ),

@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
+import { toast } from "@/lib/toast";
 
 const PLAN_ROWS: { label: string; free: string | boolean; premium: string | boolean }[] = [
   { label: "Catat Transaksi", free: "50 / bulan", premium: "Unlimited" },
@@ -44,7 +45,27 @@ export default function SettingsPage() {
     setTestStatus(null);
     const start = performance.now();
     await new Promise((r) => setTimeout(r, 300 + Math.random() * 500));
-    setTestStatus({ ok: true, ms: Math.round(performance.now() - start) });
+    const ms = Math.round(performance.now() - start);
+    setTestStatus({ ok: true, ms });
+    toast({ title: "Endpoint reachable", description: `${ms} ms`, variant: "success" });
+  };
+
+  const onUpgrade = () => {
+    upgrade();
+    toast({
+      title: "Premium aktif",
+      description: "Semua fitur lanjutan telah terbuka.",
+      variant: "success",
+    });
+  };
+
+  const onBind = () => {
+    bindTelegram("tg-" + Date.now());
+    toast({
+      title: "Telegram tertaut",
+      description: "Akun bot Anda sekarang sinkron.",
+      variant: "success",
+    });
   };
 
   const isPremium = user?.tier === "premium";
@@ -87,7 +108,7 @@ export default function SettingsPage() {
               icon={Crown}
               highlight
               current={isPremium}
-              onUpgrade={!isPremium ? upgrade : undefined}
+              onUpgrade={!isPremium ? onUpgrade : undefined}
               bullets={[
                 "OCR Scan struk & Multi-currency",
                 "AI Financial Advisor mingguan",
@@ -175,7 +196,7 @@ export default function SettingsPage() {
                 <button
                   className="btn-primary"
                   disabled={bindInput !== code}
-                  onClick={() => bindTelegram("tg-" + Date.now())}
+                  onClick={onBind}
                 >
                   <Send className="h-4 w-4" /> Bind
                 </button>

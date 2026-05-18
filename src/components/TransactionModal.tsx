@@ -5,6 +5,7 @@ import { Dialog } from "./ui/Dialog";
 import { useApp, type TxType } from "@/lib/store";
 import { parseNaturalText } from "@/lib/parse";
 import { formatCurrency } from "@/lib/format";
+import { toast } from "@/lib/toast";
 
 export function TransactionModal() {
   const open = useApp((s) => s.txModalOpen);
@@ -36,7 +37,14 @@ export function TransactionModal() {
 
   const runParse = () => {
     const p = parseNaturalText(smart);
-    if (!p) return;
+    if (!p) {
+      toast({
+        title: "Tidak terdeteksi",
+        description: "Sertakan nominal, mis. \"Beli kopi 25rb\".",
+        variant: "warning",
+      });
+      return;
+    }
     setType(p.type);
     setAmount(p.amount);
     setCategory(p.category);
@@ -54,6 +62,11 @@ export function TransactionModal() {
       notes: notes || undefined,
       rawInput: smart || undefined,
       date: new Date(date).toISOString(),
+    });
+    toast({
+      title: "Transaksi tersimpan",
+      description: `${category} · ${formatCurrency(amount)}`,
+      variant: "success",
     });
     close();
   };
