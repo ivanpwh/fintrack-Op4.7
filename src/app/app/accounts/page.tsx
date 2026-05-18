@@ -1,19 +1,23 @@
 "use client";
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/Topbar";
-import { useApp, type AccountType } from "@/lib/store";
+import { useApp } from "@/lib/store";
 import { formatCurrency } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import {
   Banknote,
   Building2,
   LineChart,
+  Loader2,
   Plus,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/lib/toast";
+import { api, queryKeys } from "@/lib/api";
+import type { AccountType } from "@/lib/dto";
 
 const ICON: Record<AccountType, LucideIcon> = {
   CASH: Banknote,
@@ -37,10 +41,21 @@ const TYPE_LABEL: Record<AccountType, string> = {
 };
 
 export default function AccountsPage() {
-  const { accounts, user } = useApp();
-  const addAccount = useApp((s) => s.addAccount);
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: api.listAccounts,
+  });
+  const qc = useQueryClient();
+  const user = useApp((s) => s.user);
   const locale = useApp((s) => s.settings.locale);
   const hide = useApp((s) => s.settings.hideAmounts);
+
+  const createAccount = useMutation({
+    mutationFn: api.createAccount,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.accounts });
+    },
+  });
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -61,12 +76,20 @@ export default function AccountsPage() {
     setCurrency("IDR");
   };
 
-  const save = () => {
+  const save = async () => {
     if (!name) return;
-    addAccount({ name, type, balance, currency });
-    toast({ title: "Akun ditambahkan", description: name, variant: "success" });
-    setOpen(false);
-    reset();
+    try {
+      await createAccount.mutateAsync({ name, type, balance, currency });
+      toast({ title: "Akun ditambahkan", description: name, variant: "success" });
+      setOpen(false);
+      reset();
+    } catch (e) {
+      toast({
+        title: "Gagal menambahkan akun",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -88,52 +111,58 @@ export default function AccountsPage() {
           </button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {accounts.map((a) => {
-            const Icon = ICON[a.type];
-            const pct = total ? Math.round((a.balance / total) * 100) : 0;
-            return (
-              <div key={a.id} className="card flex flex-col">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`grid h-10 w-10 place-items-center rounded-md ${TYPE_TONE[a.type]}`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <div className="font-medium">{a.name}</div>
-                      <div className="text-xs text-muted-foreground">{TYPE_LABEL[a.type]}</div>
+        {isLoading ? (
+          <div className="card flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Memuat akun…
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {accounts.map((a) => {
+              const Icon = ICON[a.type];
+              const pct = total ? Math.round((a.balance / total) * 100) : 0;
+              return (
+                <div key={a.id} className="card flex flex-col">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`grid h-10 w-10 place-items-center rounded-md ${TYPE_TONE[a.type]}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <div className="font-medium">{a.name}</div>
+                        <div className="text-xs text-muted-foreground">{TYPE_LABEL[a.type]}</div>
+                      </div>
                     </div>
+                    <span className="pill-outline">{a.currency}</span>
                   </div>
-                  <span className="pill-outline">{a.currency}</span>
+                  <div className="mt-4 text-2xl font-semibold tracking-tight">
+                    {formatCurrency(a.balance, a.currency, "id-ID", hide)}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Alokasi</span>
+                    <span className="font-medium text-foreground">{pct}%</span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-                <div className="mt-4 text-2xl font-semibold tracking-tight">
-                  {formatCurrency(a.balance, a.currency, "id-ID", hide)}
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Alokasi</span>
-                  <span className="font-medium text-foreground">{pct}%</span>
-                </div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          <button
-            onClick={() => setOpen(true)}
-            className="grid min-h-[180px] place-items-center rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-          >
-            <div className="flex flex-col items-center gap-2">
-              <span className="grid h-10 w-10 place-items-center rounded-md border bg-background">
-                <Plus className="h-4 w-4" />
-              </span>
-              Tambah akun baru
-            </div>
-          </button>
-        </div>
+            <button
+              onClick={() => setOpen(true)}
+              className="grid min-h-[180px] place-items-center rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <span className="grid h-10 w-10 place-items-center rounded-md border bg-background">
+                  <Plus className="h-4 w-4" />
+                </span>
+                Tambah akun baru
+              </div>
+            </button>
+          </div>
+        )}
 
         {free && investmentCount >= 1 && (
           <div className="card border-warning/40 bg-warning/10 text-sm text-warning">
@@ -160,8 +189,12 @@ export default function AccountsPage() {
               >
                 Batal
               </button>
-              <button className="btn-primary" onClick={save} disabled={!name || blockInvestment}>
-                Simpan
+              <button
+                className="btn-primary"
+                onClick={save}
+                disabled={!name || blockInvestment || createAccount.isPending}
+              >
+                {createAccount.isPending ? "Menyimpan…" : "Simpan"}
               </button>
             </>
           }

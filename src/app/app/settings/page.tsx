@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "@/lib/toast";
+import { api } from "@/lib/api";
 
 const PLAN_ROWS: { label: string; free: string | boolean; premium: string | boolean }[] = [
   { label: "Catat Transaksi", free: "50 / bulan", premium: "Unlimited" },
@@ -33,8 +34,8 @@ export default function SettingsPage() {
   const updateSettings = useApp((s) => s.updateSettings);
   const toggleMaintenance = useApp((s) => s.toggleMaintenance);
   const maintenance = useApp((s) => s.maintenance);
-  const bindTelegram = useApp((s) => s.bindTelegram);
-  const upgrade = useApp((s) => s.upgrade);
+  const setTier = useApp((s) => s.setTier);
+  const setTelegramId = useApp((s) => s.setTelegramId);
   const locale = settings.locale;
 
   const [code] = useState(() => Math.floor(100000 + Math.random() * 900000).toString());
@@ -44,28 +45,57 @@ export default function SettingsPage() {
   const onTest = async () => {
     setTestStatus(null);
     const start = performance.now();
-    await new Promise((r) => setTimeout(r, 300 + Math.random() * 500));
-    const ms = Math.round(performance.now() - start);
-    setTestStatus({ ok: true, ms });
-    toast({ title: "Endpoint reachable", description: `${ms} ms`, variant: "success" });
+    try {
+      await api.parseText("Test koneksi 1rb");
+      const ms = Math.round(performance.now() - start);
+      setTestStatus({ ok: true, ms });
+      toast({ title: "Endpoint reachable", description: `${ms} ms`, variant: "success" });
+    } catch (e) {
+      const ms = Math.round(performance.now() - start);
+      setTestStatus({ ok: false, ms });
+      toast({
+        title: "Connectivity failed",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    }
   };
 
-  const onUpgrade = () => {
-    upgrade();
-    toast({
-      title: "Premium aktif",
-      description: "Semua fitur lanjutan telah terbuka.",
-      variant: "success",
-    });
+  const onUpgrade = async () => {
+    try {
+      const me = await api.patchMe({ tier: "premium" });
+      setTier(me.tier);
+      toast({
+        title: "Premium aktif",
+        description: "Semua fitur lanjutan telah terbuka.",
+        variant: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "Gagal upgrade",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    }
   };
 
-  const onBind = () => {
-    bindTelegram("tg-" + Date.now());
-    toast({
-      title: "Telegram tertaut",
-      description: "Akun bot Anda sekarang sinkron.",
-      variant: "success",
-    });
+  const onBind = async () => {
+    const tgId = "tg-" + Date.now();
+    try {
+      const me = await api.patchMe({ telegramId: tgId });
+      setTelegramId(me.telegramId);
+      toast({
+        title: "Telegram tertaut",
+        description: "Akun bot Anda sekarang sinkron.",
+        variant: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "Gagal menautkan Telegram",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      });
+    }
   };
 
   const isPremium = user?.tier === "premium";

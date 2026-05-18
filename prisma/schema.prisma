@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  displayName  String
+  telegramId   String?       @unique
+  tier         String        @default("free")
+  createdAt    DateTime      @default(now())
+  accounts     Account[]
+  transactions Transaction[]
+}
+
+model Account {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  type      String
+  balance   Int           @default(0)
+  currency  String        @default("IDR")
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromTx    Transaction[] @relation("FromAccount")
+  toTx      Transaction[] @relation("ToAccount")
+
+  @@index([userId])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String
+  amount        Int
+  category      String
+  accountFromId String
+  accountToId   String?
+  date          DateTime @default(now())
+  notes         String?
+  rawInput      String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountFrom   Account  @relation("FromAccount", fields: [accountFromId], references: [id])
+  accountTo     Account? @relation("ToAccount", fields: [accountToId], references: [id])
+
+  @@index([userId, date])
+}

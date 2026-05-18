@@ -1,24 +1,38 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { useApp } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import { Toaster } from "@/components/ui/Toaster";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
   const signIn = useApp((s) => s.signIn);
+  const [busy, setBusy] = useState(false);
 
-  const handleGoogle = () => {
-    signIn({
-      id: "u1",
-      email: "demo@fintrack.app",
-      displayName: "Demo User",
-      tier: "free",
-    });
-    toast({ title: "Selamat datang", description: "Demo User · Free tier", variant: "success" });
-    router.replace("/app");
+  const handleGoogle = async () => {
+    setBusy(true);
+    try {
+      const me = await api.me();
+      signIn(me);
+      toast({
+        title: "Selamat datang",
+        description: `${me.displayName} · ${me.tier === "premium" ? "Premium" : "Free"} tier`,
+        variant: "success",
+      });
+      router.replace("/app");
+    } catch (e) {
+      toast({
+        title: "Gagal masuk",
+        description: e instanceof Error ? e.message : "Tidak dikenal",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -36,9 +50,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <button onClick={handleGoogle} className="btn-ghost mt-6 w-full">
+        <button
+          onClick={handleGoogle}
+          disabled={busy}
+          className="btn-ghost mt-6 w-full disabled:cursor-progress"
+        >
           <GoogleIcon />
-          Sign in with Google
+          {busy ? "Menghubungkan…" : "Sign in with Google"}
         </button>
 
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
@@ -48,9 +66,10 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-          <div className="font-medium text-foreground">Mode demo</div>
+          <div className="font-medium text-foreground">Mode demo · No auth</div>
           <p className="mt-1">
-            Autentikasi disimulasikan tanpa OAuth. Data tersimpan di browser Anda.
+            Sesi tanpa OAuth. Data tersimpan di backend SQLite via Prisma —
+            siap dipindah ke PostgreSQL di production.
           </p>
         </div>
 

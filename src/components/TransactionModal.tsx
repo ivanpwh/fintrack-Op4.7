@@ -12,11 +12,14 @@ import {
   User,
 } from "lucide-react";
 import clsx from "clsx";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "./ui/Dialog";
-import { useApp, type TxType } from "@/lib/store";
-import { parseNaturalText, type ParsedTx } from "@/lib/parse";
+import { useApp } from "@/lib/store";
+import type { ParsedTx } from "@/lib/parse";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
+import { api, queryKeys } from "@/lib/api";
+import type { TxType } from "@/lib/dto";
 
 type UserMsg = { id: string; role: "user"; text: string };
 type AiThinking = { id: string; role: "ai"; status: "thinking"; for: string };
@@ -26,6 +29,7 @@ type AiResult = {
   status: "done";
   for: string;
   parsed: ParsedTx;
+  latencyMs: number;
 };
 type AiError = { id: string; role: "ai"; status: "error"; for: string };
 type Msg = UserMsg | AiThinking | AiResult | AiError;
@@ -47,8 +51,20 @@ const TX_META = {
 export function TransactionModal() {
   const open = useApp((s) => s.txModalOpen);
   const close = useApp((s) => s.closeTxModal);
-  const { accounts } = useApp();
-  const addTransaction = useApp((s) => s.addTransaction);
+  const qc = useQueryClient();
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: api.listAccounts,
+  });
+
+  const createTx = useMutation({
+    mutationFn: api.createTransaction,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.transactions });
+      qc.invalidateQueries({ queryKey: queryKeys.accounts });
+    },
+  });
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [prompt, setPrompt] = useState("");
@@ -57,7 +73,7 @@ export function TransactionModal() {
   const [type, setType] = useState<TxType>("EXPENSE");
   const [amount, setAmount] = useState<number>(0);
   const [category, setCategory] = useState("Umum");
-  const [accountFromId, setAccountFromId] = useState(accounts[0]?.id ?? "");
+  const [accountFromId, setAccountFromId] = useState<string>("");
   const [accountToId, setAccountToId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -87,6 +103,10 @@ export function TransactionModal() {
   }, [open]);
 
   useEffect(() => {
+    if (open && !accountFromId && accounts[0]?.id) setAccountFromId(accounts[0].id);
+  }, [open, accountFromId, accounts]);
+
+  useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, thinking]);
 
@@ -105,12 +125,35 @@ export function TransactionModal() {
     setPrompt("");
     setThinking(true);
 
-    await new Promise((r) => setTimeout(r, 450 + Math.random() * 450));
+    try {
+      const { parsed, latencyMs } = await api.parseText(value);
+      setThinking(false);
 
-    const parsed = parseNaturalText(value);
-    setThinking(false);
+      if (!parsed) {
+        setMessages((m) =>
+          m.map((x): Msg =>
+            x.id === thinkingMsg.id
+              ? { id: x.id, role: "ai", status: "error", for: userMsg.id }
+              : x,
+          ),
+        );
+        return;
+      }
 
-    if (!parsed) {
+      setMessages((m) =>
+        m.map((x): Msg =>
+          x.id === thinkingMsg.id
+            ? { id: x.id, role: "ai", status: "done", for: userMsg.id, parsed, latencyMs }
+            : x,
+        ),
+      );
+      setType(parsed.type);
+      setAmount(parsed.amount);
+      setCategory(parsed.category);
+      setNotes(parsed.notes ?? value);
+      setLastSource(value);
+    } catch {
+      setThinking(false);
       setMessages((m) =>
         m.map((x): Msg =>
           x.id === thinkingMsg.id
@@ -118,42 +161,38 @@ export function TransactionModal() {
             : x,
         ),
       );
-      return;
     }
-
-    setMessages((m) =>
-      m.map((x): Msg =>
-        x.id === thinkingMsg.id
-          ? { id: x.id, role: "ai", status: "done", for: userMsg.id, parsed }
-          : x,
-      ),
-    );
-
-    setType(parsed.type);
-    setAmount(parsed.amount);
-    setCategory(parsed.category);
-    setNotes(parsed.notes ?? value);
-    setLastSource(value);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!accountFromId || !amount) return;
-    addTransaction({
-      type,
-      amount,
-      category,
-      accountFromId,
-      accountToId: type === "TRANSFER" ? accountToId || undefined : undefined,
-      notes: notes || undefined,
-      rawInput: lastSource || undefined,
-      date: new Date(date).toISOString(),
-    });
-    toast({
-      title: "Transaksi tersimpan",
-      description: `${category} · ${formatCurrency(amount)}`,
-      variant: "success",
-    });
-    close();
+    try {
+      await createTx.mutateAsync({
+        type,
+        amount,
+        category,
+        accountFromId,
+        accountToId:
+          type === "TRANSFER" || type === "SAVING"
+            ? accountToId || null
+            : null,
+        notes: notes || null,
+        rawInput: lastSource || null,
+        date: new Date(date).toISOString(),
+      });
+      toast({
+        title: "Transaksi tersimpan",
+        description: `${category} · ${formatCurrency(amount)}`,
+        variant: "success",
+      });
+      close();
+    } catch (e) {
+      toast({
+        title: "Gagal menyimpan",
+        description: e instanceof Error ? e.message : "Coba lagi.",
+        variant: "destructive",
+      });
+    }
   };
 
   const hasParsed = messages.some((m) => m.role === "ai" && m.status === "done");
@@ -164,7 +203,7 @@ export function TransactionModal() {
       amount,
       category,
       from: accName(accountFromId),
-      to: type === "TRANSFER" ? accName(accountToId) : null,
+      to: type === "TRANSFER" || type === "SAVING" ? accName(accountToId) : null,
       date,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,8 +220,12 @@ export function TransactionModal() {
       footer={
         <>
           <button className="btn-ghost" onClick={close}>Batal</button>
-          <button className="btn-primary" onClick={submit} disabled={!amount}>
-            Simpan
+          <button
+            className="btn-primary"
+            onClick={submit}
+            disabled={!amount || !accountFromId || createTx.isPending}
+          >
+            {createTx.isPending ? "Menyimpan…" : "Simpan"}
           </button>
         </>
       }
@@ -237,7 +280,9 @@ export function TransactionModal() {
                           contoh: <i>"Beli sushi 75rb"</i>.
                         </div>
                       )}
-                      {m.status === "done" && <ResultBubble parsed={m.parsed} />}
+                      {m.status === "done" && (
+                        <ResultBubble parsed={m.parsed} latencyMs={m.latencyMs} />
+                      )}
                     </div>
                   </div>
                 ),
@@ -357,7 +402,7 @@ export function TransactionModal() {
                   onChange={(e) => setDate(e.target.value)}
                 />
               </Field>
-              <Field label={type === "TRANSFER" ? "Akun Asal" : "Akun"}>
+              <Field label={type === "TRANSFER" || type === "SAVING" ? "Akun Asal" : "Akun"}>
                 <select
                   className="input"
                   value={accountFromId}
@@ -368,7 +413,7 @@ export function TransactionModal() {
                   ))}
                 </select>
               </Field>
-              {type === "TRANSFER" && (
+              {(type === "TRANSFER" || type === "SAVING") && (
                 <Field label="Akun Tujuan">
                   <select
                     className="input"
@@ -440,7 +485,7 @@ function Dot({ delay }: { delay: string }) {
   );
 }
 
-function ResultBubble({ parsed }: { parsed: ParsedTx }) {
+function ResultBubble({ parsed, latencyMs }: { parsed: ParsedTx; latencyMs: number }) {
   const meta = TX_META[parsed.type];
   const Icon = meta.Icon;
   return (
@@ -463,6 +508,7 @@ function ResultBubble({ parsed }: { parsed: ParsedTx }) {
         </span>
         <span className="pill-outline">{formatCurrency(parsed.amount)}</span>
         <span className="pill-outline">#{parsed.category}</span>
+        <span className="pill-outline text-muted-foreground">{latencyMs} ms</span>
       </div>
     </div>
   );
