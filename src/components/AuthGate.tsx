@@ -22,9 +22,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (!ready || !user || maintenance) {
     return (
       <div className="grid min-h-screen place-items-center">
-        <div className="text-sm" style={{ color: "var(--muted)" }}>
-          Loading…
-        </div>
+        <div className="text-sm text-muted-foreground">Loading…</div>
       </div>
     );
   }
