@@ -42,7 +42,11 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
               {t(locale, hideAmounts ? "showAmount" : "hideAmount")}
             </span>
           </button>
-          <button onClick={openTxModal} className="btn-primary">
+          <button
+            onClick={openTxModal}
+            className="btn-primary"
+            aria-label={t(locale, "addTransaction")}
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">{t(locale, "addTransaction")}</span>
           </button>

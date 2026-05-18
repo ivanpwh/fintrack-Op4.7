@@ -149,6 +149,22 @@ export default function AccountsPage() {
           }}
           title="Akun Baru"
           description="Tambahkan akun kas, bank, atau investasi."
+          footer={
+            <>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setOpen(false);
+                  reset();
+                }}
+              >
+                Batal
+              </button>
+              <button className="btn-primary" onClick={save} disabled={!name || blockInvestment}>
+                Simpan
+              </button>
+            </>
+          }
         >
           <div className="space-y-3">
             <Field label="Nama">
@@ -194,20 +210,6 @@ export default function AccountsPage() {
                 Free tier hanya mengizinkan 1 akun investasi.
               </p>
             )}
-          </div>
-          <div className="mt-5 flex justify-end gap-2">
-            <button
-              className="btn-ghost"
-              onClick={() => {
-                setOpen(false);
-                reset();
-              }}
-            >
-              Batal
-            </button>
-            <button className="btn-primary" onClick={save} disabled={!name || blockInvestment}>
-              Simpan
-            </button>
           </div>
         </Dialog>
       </div>
