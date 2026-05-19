@@ -1,11 +1,12 @@
 node_modules
 .next
-out
-.env*.local
+.git
+.github
 .env
+.env*.local
 prisma/dev.db
 prisma/dev.db-journal
-prisma/seed.cjs
-.DS_Store
 *.tsbuildinfo
 next-env.d.ts.bak
+README.md
+.DS_Store
