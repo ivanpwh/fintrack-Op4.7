@@ -1,16 +1,18 @@
 "use client";
 import { useMemo } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/Topbar";
-import { useApp, type TxType } from "@/lib/store";
+import { useApp } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { api, queryKeys } from "@/lib/api";
+import type { TxType } from "@/lib/dto";
 import {
   Area,
   AreaChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -41,9 +43,17 @@ const PIE_COLORS = [
 ];
 
 export default function DashboardPage() {
-  const { transactions, accounts, user } = useApp();
+  const { data: transactions = [] } = useQuery({
+    queryKey: queryKeys.transactions,
+    queryFn: api.listTransactions,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: api.listAccounts,
+  });
   const locale = useApp((s) => s.settings.locale);
   const hide = useApp((s) => s.settings.hideAmounts);
+  const user = useApp((s) => s.user);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -62,8 +72,7 @@ export default function DashboardPage() {
 
     const income = sumBy("INCOME", D30, now);
     const expense = sumBy("EXPENSE", D30, now);
-    const saving =
-      sumBy("SAVING", D30, now) + sumBy("TRANSFER", D30, now);
+    const saving = sumBy("SAVING", D30, now) + sumBy("TRANSFER", D30, now);
 
     const prevIncome = sumBy("INCOME", D60, D30);
     const prevExpense = sumBy("EXPENSE", D60, D30);

@@ -1,9 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/Topbar";
-import { useApp, type TxType } from "@/lib/store";
+import { useApp } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { api, queryKeys } from "@/lib/api";
+import type { TxType } from "@/lib/dto";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -13,6 +16,7 @@ import {
   Plus,
   Search,
   Inbox,
+  Loader2,
 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "@/lib/toast";
@@ -26,15 +30,38 @@ const TYPES: { value: TxType | "ALL"; label: string }[] = [
 ];
 
 export default function TransactionsPage() {
-  const { transactions, accounts } = useApp();
-  const deleteTransaction = useApp((s) => s.deleteTransaction);
+  const { data: transactions = [], isLoading } = useQuery({
+    queryKey: queryKeys.transactions,
+    queryFn: api.listTransactions,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: api.listAccounts,
+  });
   const openTxModal = useApp((s) => s.openTxModal);
   const locale = useApp((s) => s.settings.locale);
   const hide = useApp((s) => s.settings.hideAmounts);
   const [filter, setFilter] = useState<TxType | "ALL">("ALL");
   const [q, setQ] = useState("");
 
-  const accName = (id?: string) => accounts.find((a) => a.id === id)?.name ?? "—";
+  const qc = useQueryClient();
+  const deleteTx = useMutation({
+    mutationFn: api.deleteTransaction,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.transactions });
+      qc.invalidateQueries({ queryKey: queryKeys.accounts });
+      toast({ title: "Transaksi dihapus" });
+    },
+    onError: (e) =>
+      toast({
+        title: "Gagal menghapus",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      }),
+  });
+
+  const accName = (id?: string | null) =>
+    accounts.find((a) => a.id === id)?.name ?? "—";
 
   const filtered = useMemo(() => {
     return transactions
@@ -49,16 +76,15 @@ export default function TransactionsPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, filter, q]);
 
-  const onDelete = (id: string) => {
-    deleteTransaction(id);
-    toast({ title: "Transaksi dihapus", variant: "default" });
-  };
-
   return (
     <>
       <Topbar
         title={t(locale, "transactions")}
-        subtitle={`${filtered.length} dari ${transactions.length} entri`}
+        subtitle={
+          isLoading
+            ? "Memuat…"
+            : `${filtered.length} dari ${transactions.length} entri`
+        }
       />
       <div className="space-y-4 p-4 md:p-6">
         <div className="card flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -95,7 +121,11 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="card flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Memuat transaksi…
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="card flex flex-col items-center justify-center gap-3 py-16 text-center">
             <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground">
               <Inbox className="h-5 w-5" />
@@ -157,8 +187,9 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => onDelete(tx.id)}
-                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => deleteTx.mutate(tx.id)}
+                          disabled={deleteTx.isPending}
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                           title="Hapus"
                           aria-label="Hapus transaksi"
                         >
@@ -198,8 +229,9 @@ export default function TransactionsPage() {
                     )}
                   </div>
                   <button
-                    onClick={() => onDelete(tx.id)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deleteTx.mutate(tx.id)}
+                    disabled={deleteTx.isPending}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                     aria-label="Hapus"
                   >
                     <Trash2 className="h-4 w-4" />
